@@ -22,9 +22,13 @@ prompt-sensitivity analysis and may not be used to re-pick the primary prompt. E
 prompt id, and prediction files are named by it.
 
 **Flowers-102 class names: CLIP list, unmodified.** torchvision returns integer labels only, so names
-come from the list in OpenAI's CLIP repo. No hand-editing of individual names.
+come from the list in OpenAI's CLIP repo (`data/prompts.md` at commit `e184f608`). No hand-editing of
+individual names. Stored in `configs/classnames/flowers102.txt`, one name per line in label order.
 
 **Food-101 class names: `meta/classes.txt` with underscores replaced by spaces.** No other changes.
+Stored in `configs/classnames/food101.txt`, taken from the same CLIP file, whose list is exactly that
+transformation. Food-101 is not downloaded locally, so the loader checks the file against torchvision's
+`classes` every time the dataset is loaded and fails on any mismatch.
 
 **Food-101 validation split: stratified 5% of train, fixed seed.** Exactly 5% of each class's 750
 training images (37–38 per class, ~3,800 total) is held out, so validation is class-balanced like
