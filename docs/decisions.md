@@ -15,11 +15,20 @@ to audit. No feature branches or PRs for now.
 **Model revision pinned.** `Cloudflare/clef-flash` at `fb4417d31c1d0f9e7e77f1141b40aaede7491e00`, so
 every run uses identical weights and release code. See `docs/clef_interface.md`.
 
-**Prompts: list per dataset with stable ids, `p0` is primary.** Each dataset config holds a list of
-prompts referenced by stable id (`p0`, `p1`, ...), never by list position. `p0` is frozen before any
-results and is used for all headline zero-shot and fine-tuned numbers. Other prompts are a separate
-prompt-sensitivity analysis and may not be used to re-pick the primary prompt. Every run logs its
-prompt id, and prediction files are named by it.
+**Prompts: candidates per dataset with stable ids.** Each dataset config (`configs/<dataset>.yaml`)
+holds prompt candidates keyed by stable id (`p0`, `p1`, ...). An id is never renumbered, reused or
+edited once results exist for it. Every run logs its prompt id, and prediction files are named by it.
+*(Revised: originally `p0` was to be primary by default; superseded by the selection rule below.)*
+
+**Primary prompt chosen on validation.** Four candidates per dataset (`p0`–`p3`) are scored zero-shot
+on validation: the full official Flowers-102 val set, and a fixed-seed 1,000-image subset of the
+Food-101 val split. The best by the dataset's primary metric becomes `primary_prompt` in the config,
+frozen before any test-set run, and is used for all headline zero-shot and fine-tuned numbers. The
+other candidates feed the later prompt-sensitivity analysis and may not be used to re-pick the primary.
+
+**Option IDs are class names.** Each class's name is its option ID in the `choice` question, because
+the model reads the ID text. Whether options also get a description is a per-prompt setting
+(`option_description`).
 
 **Flowers-102 class names: CLIP list, unmodified.** torchvision returns integer labels only, so names
 come from the list in OpenAI's CLIP repo (`data/prompts.md` at commit `e184f608`). No hand-editing of
@@ -47,11 +56,8 @@ tested with). A full lock file will be generated from a working ICE install.
 
 ## Open questions
 
-- **Option IDs for classes:** class name as option ID (recommended: the model reads the ID text) vs. a
-  neutral code with the name in the description. Decide in Phase 3 as part of `p0`.
-- **`state` text:** the record requires a text state alongside the image. Decide in Phase 3 as part
-  of `p0`.
-- **How `p0` is chosen:** hand-written once vs. picked from a few candidates on validation.
+- **Prompt candidate wording:** `p0`–`p3` in the configs are drafts pending team review. They must be
+  final before any validation run, since ids cannot be edited after results exist.
 - **Scope of the prompt comparison:** zero-shot only, fine-tune with `p0` and evaluate all prompts,
   or fine-tune per prompt. Decide when training starts.
 - **CLAUDE.md conventions:** still says "one feature per branch/PR", which conflicts with the git

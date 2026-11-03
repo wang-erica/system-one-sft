@@ -1,0 +1,31 @@
+dataset: food101
+seed: 0
+
+model:
+  repo: Cloudflare/clef-flash
+  revision: fb4417d31c1d0f9e7e77f1141b40aaede7491e00
+
+# Prompt candidates, referenced by stable id. Never renumber, reuse or edit an id once any result
+# exists for it; add a new id instead. Class names (configs/classnames/) are the option IDs.
+# option_description: null, or a template with {name} used as each option's description.
+prompts:
+  p0:
+    state: "A photograph of a dish of food."
+    instructions: "Which dish is shown in the image?"
+    option_description: null
+  p1:
+    state: "A photograph of a dish of food."
+    instructions: "Which dish is shown in the image?"
+    option_description: "a photo of {name}, a type of food."
+  p2:
+    state: {task: "food dish identification", image: "attached"}
+    instructions: "Identify the dish in the attached image."
+    option_description: null
+  p3:
+    state: ""
+    instructions: "What food is this?"
+    option_description: null
+
+# Chosen once from the candidates by validation score (see docs/decisions.md), then frozen.
+# Used for the headline zero-shot and fine-tuned results.
+primary_prompt: null
