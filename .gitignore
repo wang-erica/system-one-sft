@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Datasets, model weights, checkpoints
+data/
+datasets/
+hf_cache/
+checkpoints/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+
+# Raw predictions (metrics JSON and summary tables stay committed)
+results/raw/
+*.npy
+*.npz
+*.parquet
+
+# SLURM / logs
+logs/
+slurm-*.out
+wandb/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Local Claude Code project notes
+CLAUDE.md
