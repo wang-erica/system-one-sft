@@ -32,6 +32,3 @@ wandb/
 .DS_Store
 .vscode/
 .idea/
-
-# Local Claude Code project notes
-CLAUDE.md
