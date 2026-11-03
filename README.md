@@ -13,4 +13,5 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Results tables live in `results/summary.md`.
+Results tables live in `results/summary.md`. Design decisions and open questions are logged in
+`docs/decisions.md`.
