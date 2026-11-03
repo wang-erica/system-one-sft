@@ -58,7 +58,5 @@ tested with). A full lock file will be generated from a working ICE install.
 
 - **Prompt candidate wording:** `p0`–`p3` in the configs are drafts pending team review. They must be
   final before any validation run, since ids cannot be edited after results exist.
-- **Scope of the prompt comparison:** zero-shot only, fine-tune with `p0` and evaluate all prompts,
-  or fine-tune per prompt. Decide when training starts.
-- **CLAUDE.md conventions:** still says "one feature per branch/PR", which conflicts with the git
-  workflow above.
+- **Scope of the prompt comparison:** zero-shot only, fine-tune with the primary prompt and evaluate
+  all prompts, or fine-tune per prompt. Decide when training starts.
