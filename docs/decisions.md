@@ -51,6 +51,20 @@ because Food-101 is stored grouped by class and the first N would all be one cla
 **Local datasets: Flowers-102 only.** Flowers-102 (~350 MB) is downloaded locally for testing.
 Food-101 (~5 GB) is only downloaded on ICE; locally we test class names and split logic.
 
+**Metrics.** Computed in `src/metrics.py` from saved logits, so any metric can be recomputed later:
+- Mean per-class accuracy: average recall over classes present in the labels (same as scikit-learn's
+  `balanced_accuracy_score`). Primary metric for Flowers-102.
+- Top-1 accuracy: primary metric for Food-101. Top-5 accuracy is also reported.
+- Macro-F1: unweighted mean over classes present in labels or predictions (scikit-learn's default).
+- ECE: top-label, 15 equal-width bins, bin m covers ((m-1)/15, m/15] (Guo et al., 2017). Other
+  binning schemes can be computed later from the saved logits.
+- Negative log-likelihood, for later calibration work.
+
+**Save logits, not just probabilities.** Every evaluation saves full float32 logits per image (plus
+labels and image indices). Probabilities are recomputed exactly with a softmax, tiny probabilities
+are not lost to rounding, and post-hoc temperature scaling (fit on validation) stays possible without
+rerunning the model.
+
 **Dependencies.** Only torch 2.11 and transformers 5.10.2 are pinned (the versions the model card was
 tested with). A full lock file will be generated from a working ICE install.
 
