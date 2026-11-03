@@ -17,6 +17,9 @@ checkpoints/
 *.pth
 *.ckpt
 
+# Local outputs (diagnostic plots etc.)
+outputs/
+
 # Raw predictions (metrics JSON and summary tables stay committed)
 results/raw/
 *.npy
