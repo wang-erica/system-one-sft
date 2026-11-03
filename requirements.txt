@@ -17,3 +17,6 @@ pillow
 scipy
 matplotlib
 tqdm
+
+# Tests
+pytest

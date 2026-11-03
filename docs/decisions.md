@@ -30,9 +30,14 @@ Stored in `configs/classnames/food101.txt`, taken from the same CLIP file, whose
 transformation. Food-101 is not downloaded locally, so the loader checks the file against torchvision's
 `classes` every time the dataset is loaded and fails on any mismatch.
 
-**Food-101 validation split: stratified 5% of train, fixed seed.** Exactly 5% of each class's 750
-training images (37–38 per class, ~3,800 total) is held out, so validation is class-balanced like
-the test set. The split indices are committed so every run uses the same split.
+**Food-101 validation split: stratified 5% of train, fixed seed.** 38 of each class's 750 training
+images (5% rounded up; 3,838 total) are held out with seed 0, so validation is exactly class-balanced
+like the test set. The held-out image IDs are committed in `configs/splits/food101_val.json` so every
+run uses the same split. That file is generated once on ICE (`python -m src.data make-food101-split`),
+since Food-101 is not downloaded locally.
+
+**Subsets for quick checks.** `--limit N` takes a fixed-seed random subset, not the first N images,
+because Food-101 is stored grouped by class and the first N would all be one class.
 
 **Local datasets: Flowers-102 only.** Flowers-102 (~350 MB) is downloaded locally for testing.
 Food-101 (~5 GB) is only downloaded on ICE; locally we test class names and split logic.
