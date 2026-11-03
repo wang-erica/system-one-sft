@@ -65,6 +65,18 @@ labels and image indices). Probabilities are recomputed exactly with a softmax, 
 are not lost to rounding, and post-hoc temperature scaling (fit on validation) stays possible without
 rerunning the model.
 
+**Run outputs.** Each evaluation gets a run ID `<dataset>_<split>_<method>_<prompt>[_limitN]_<UTC time>`
+and writes two files:
+- `results/raw/<run_id>.npz` (gitignored): logits, labels, and each image's index in the full split.
+- `results/runs/<run_id>.json` (committed): metrics, full config and prompt text, seed, model
+  revision, class-name file hash, git commit and dirty flag, package versions, GPU, SLURM job ID,
+  and timing.
+
+A run never overwrites existing outputs.
+
+**Test-split guard.** `src/eval.py` refuses the test split unless the config's `primary_prompt` is
+set and the run uses it, so candidate prompts cannot be scored on test by accident.
+
 **Dependencies.** Only torch 2.11 and transformers 5.10.2 are pinned (the versions the model card was
 tested with). A full lock file will be generated from a working ICE install.
 
