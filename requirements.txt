@@ -1,0 +1,19 @@
+# Pinned to the versions the Clef model card was tested with.
+torch==2.11.*
+torchvision
+transformers==5.10.2
+peft
+accelerate
+huggingface_hub
+safetensors
+
+# Data, metrics, logging
+numpy
+pandas
+pyarrow
+scikit-learn
+pyyaml
+pillow
+scipy
+matplotlib
+tqdm
