@@ -16,6 +16,36 @@ pip install -r requirements.txt
 Results tables live in `results/summary.md`. Design decisions and open questions are logged in
 `docs/decisions.md`.
 
+## Training Flowers-102 and Food-101
+
+Run from the repository root on a BF16-capable CUDA GPU. Prepare the datasets once:
+
+```bash
+python -m src.data download flowers102
+python -m src.data make-food101-split --download
+```
+
+Start with a 100-image smoke check, then train on the full splits:
+
+```bash
+python -m src.train flowers102 --prompt p0 --epochs 1 --limit 100 --output outputs/flowers-smoke
+python -m src.train flowers102 --prompt p0 --epochs 3 --output outputs/flowers-train
+python -m src.train food101 --prompt p0 --epochs 3 --output outputs/food-train
+```
+
+`--prompt p0` explicitly chooses an experimental prompt. For final runs, select and freeze
+`primary_prompt` using validation results, then omit `--prompt` to use it. Training uses
+only train and validation, selects the adapter by the dataset's validation primary metric,
+and saves `adapter/`, `training.json` (config, seed, subset indices, environment and history),
+and `validation.npz` (selected-checkpoint logits, labels, class names and original indices).
+The test split is never loaded by this command.
+
+Each run needs a fresh output directory. `--limit N` takes fixed-seed random subsets of
+both train and validation; omit it for full training. Use `--root` for a different data
+directory. Batch size defaults to 1; other options include `--learning-rate`, `--rank`,
+`--alpha`, `--dropout`, `--target-modules`, `--seed` and `--eval-batch-size`.
+Run `python -m src.train --help` for the full interface.
+
 ## Automated Kaggle experiments
 
 ```bash
