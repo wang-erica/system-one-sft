@@ -15,3 +15,15 @@ pip install -r requirements.txt
 
 Results tables live in `results/summary.md`. Design decisions and open questions are logged in
 `docs/decisions.md`.
+
+## Automated Kaggle experiments
+
+```bash
+python -m src.pipeline plan https://www.kaggle.com/competitions/COMPETITION --output outputs/plan
+# Complete the generated YAML with prepared data and a published-solution adapter.
+python -m src.pipeline run outputs/plan/experiment.yaml --output outputs/run
+```
+
+Runs a winning-solution baseline, zero-shot Clef, and validation-selected LoRA SFT on the
+same held-out images, saving predictions and a comparison report. See
+[the pipeline guide](docs/pipeline.md) for data preparation, adapter setup, and limitations.
