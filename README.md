@@ -46,6 +46,18 @@ directory. Batch size defaults to 1; other options include `--learning-rate`, `-
 `--alpha`, `--dropout`, `--target-modules`, `--seed` and `--eval-batch-size`.
 Run `python -m src.train --help` for the full interface.
 
+If backpropagation runs out of GPU memory at batch size 1, try `--gradient-checkpointing`.
+It uses non-reentrant activation checkpointing and disables the backbone's KV cache,
+trading extra computation for lower activation memory. For example:
+
+```bash
+python -m src.train flowers102 --prompt p0 --epochs 1 --limit 100 --gradient-checkpointing --output outputs/flowers-smoke-gc
+```
+
+`--limit` reduces the number of examples, not the memory required for one training step.
+Checkpointing does not guarantee that training fits a particular GPU; a larger-memory
+GPU may still be needed. Training now displays a per-epoch progress bar and batch loss.
+
 ## Automated Kaggle experiments
 
 ```bash

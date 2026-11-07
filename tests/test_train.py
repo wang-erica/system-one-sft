@@ -12,8 +12,12 @@ from src import model, train
 from src.data import Split
 
 
-def test_training_updates_weights_and_restores_best_validation(tmp_path, monkeypatch):
+@pytest.mark.parametrize("checkpointing", [False, True])
+def test_training_updates_weights_and_restores_best_validation(tmp_path, monkeypatch, checkpointing):
     backbone = torch.nn.Linear(2, 2, bias=False)
+    backbone.config = SimpleNamespace(use_cache=True, text_config=SimpleNamespace(use_cache=True))
+    checkpoint_calls = []
+    backbone.gradient_checkpointing_enable = lambda **kw: checkpoint_calls.append(kw)
     saved = {}
 
     def save(path):
@@ -39,7 +43,8 @@ def test_training_updates_weights_and_restores_best_validation(tmp_path, monkeyp
     original = backbone.weight.detach().clone()
     metrics = iter([0.9, 0.2])
     result = train.fit(clef, data, data, ["a", "b"], None,
-                       {"epochs": 2, "batch_size": 2, "learning_rate": 0.1},
+                       {"epochs": 2, "batch_size": 2, "learning_rate": 0.1,
+                        "gradient_checkpointing": checkpointing},
                        tmp_path / "adapter", lambda _: {"top1_accuracy": next(metrics)},
                        "top1_accuracy")
     assert not torch.equal(original, backbone.weight)
@@ -47,6 +52,10 @@ def test_training_updates_weights_and_restores_best_validation(tmp_path, monkeyp
     assert result["best_validation_score"] == 0.9
     assert len(result["history"]) == 2
     assert not holder.training
+    assert checkpoint_calls == ([{"gradient_checkpointing_kwargs": {"use_reentrant": False}}]
+                                if checkpointing else [])
+    assert backbone.config.use_cache is (not checkpointing)
+    assert backbone.config.text_config.use_cache is (not checkpointing)
 
 
 @pytest.mark.parametrize("dataset", ["flowers102", "food101"])
@@ -72,6 +81,7 @@ def test_training_cli_official_splits_and_artifacts(tmp_path, monkeypatch, datas
     def fit(clef, train_data, val_data, names, prompt, settings, output, score, primary_metric):
         assert len(train_data) == len(val_data) == 5
         assert settings["epochs"] == 1
+        assert settings["gradient_checkpointing"] is True
         assert score(val_data)["top1_accuracy"] == 1
         assert primary_metric == ("mean_per_class_accuracy" if dataset == "flowers102" else "top1_accuracy")
         output.mkdir()
@@ -79,7 +89,7 @@ def test_training_cli_official_splits_and_artifacts(tmp_path, monkeypatch, datas
     monkeypatch.setattr(train, "fit", fit)
     output = tmp_path / "run"
     train.main([dataset, "--output", str(output), "--root", str(tmp_path / "data"),
-                "--device", "cpu", "--epochs", "1", "--limit", "5"])
+                "--device", "cpu", "--epochs", "1", "--limit", "5", "--gradient-checkpointing"])
     assert [c[1] for c in calls] == ["train", "val"]
     record = json.loads((output / "training.json").read_text())
     assert record["status"] == "complete"

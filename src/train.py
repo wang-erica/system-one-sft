@@ -12,6 +12,7 @@ from typing import Callable
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 
 def seed_everything(seed: int) -> None:
@@ -41,6 +42,16 @@ def fit(clef, train_data, val_data, class_names, prompt, settings: dict,
                    target_modules=settings.get("target_modules", ["q_proj", "v_proj"]),
                    lora_dropout=float(settings.get("dropout", 0.05)), bias="none"),
     )
+    if settings.get("gradient_checkpointing", False):
+        backbone = clef.model.language_model
+        # Non-reentrant checkpointing supports frozen embeddings with trainable LoRA layers.
+        backbone.gradient_checkpointing_enable(
+            gradient_checkpointing_kwargs={"use_reentrant": False}
+        )
+        config = backbone.config
+        for model_config in (config, getattr(config, "text_config", None)):
+            if model_config is not None:
+                model_config.use_cache = False
     parameters = [p for p in clef.model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(parameters, lr=learning_rate)
     loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, collate_fn=list)
@@ -49,7 +60,8 @@ def fit(clef, train_data, val_data, class_names, prompt, settings: dict,
     for epoch in range(epochs):
         clef.model.train()
         total_loss = 0.0
-        for batch in loader:
+        batches = tqdm(loader, desc=f"train epoch {epoch + 1}/{epochs}")
+        for batch in batches:
             images, labels = zip(*batch)
             optimizer.zero_grad(set_to_none=True)
             logits = class_logits(clef, list(images), class_names, prompt)
@@ -58,6 +70,9 @@ def fit(clef, train_data, val_data, class_names, prompt, settings: dict,
             torch.nn.utils.clip_grad_norm_(parameters, 1.0)
             optimizer.step()
             total_loss += loss.item() * len(batch)
+            batches.set_postfix(loss=f"{loss.item():.4f}")
+            del loss, logits
+        optimizer.zero_grad(set_to_none=True)
         clef.model.eval()
         metrics = score(val_data)
         history.append({"epoch": epoch + 1, "train_loss": total_loss / len(train_data), "validation": metrics})
@@ -88,6 +103,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--alpha", type=int, default=16)
     parser.add_argument("--dropout", type=float, default=0.05)
     parser.add_argument("--target-modules", nargs="+", default=["q_proj", "v_proj"])
+    parser.add_argument("--gradient-checkpointing", action="store_true",
+                        help="reduce training activation memory by recomputing during backward")
     parser.add_argument("--seed", type=int, help="override the dataset config's seed")
     parser.add_argument("--limit", type=int, help="fixed-seed subset size for both train and validation")
     args = parser.parse_args(argv)
@@ -125,7 +142,8 @@ def main(argv: list[str] | None = None) -> None:
         splits[split] = replace(full, data=Subset(full.data, indices[split]))
 
     settings = {key: getattr(args, key) for key in
-                ("epochs", "batch_size", "learning_rate", "rank", "alpha", "dropout", "target_modules")}
+                ("epochs", "batch_size", "learning_rate", "rank", "alpha", "dropout",
+                 "target_modules", "gradient_checkpointing")}
     args.output.mkdir(parents=True, exist_ok=False)
     record = {"dataset": args.dataset, "config": config, "prompt_id": prompt.prompt_id,
               "prompt": config["prompts"][prompt.prompt_id], "class_names": names,
