@@ -28,4 +28,4 @@ prompts:
 
 # Chosen once from the candidates by validation score (see docs/decisions.md), then frozen.
 # Used for the headline zero-shot and fine-tuned results.
-primary_prompt: null
+primary_prompt: p0

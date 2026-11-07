@@ -58,6 +58,21 @@ python -m src.train flowers102 --prompt p0 --epochs 1 --limit 100 --gradient-che
 Checkpointing does not guarantee that training fits a particular GPU; a larger-memory
 GPU may still be needed. Training now displays a per-epoch progress bar and batch loss.
 
+Evaluate a trained adapter on the full validation split, and compare with base Clef:
+
+```bash
+python -m src.eval flowers102 --split val --prompt p0 --batch-size 1 --adapter outputs/flowers-smoke-gc/adapter
+python -m src.eval flowers102 --split val --prompt p0 --batch-size 1
+```
+
+Add `--limit 100` to reproduce a 100-image check. Adapter evaluation reads the adjacent
+training log when available, checks the dataset/model/prompt, and uses the training seed
+for subset selection. It labels the run `sft` and records the adapter path. Without
+`--adapter`, evaluation uses base Clef and labels the run `zeroshot`. Both save metrics
+under `results/runs/` and full predictions under `results/raw/`. Evaluation on `--split test`
+requires a validation-selected `primary_prompt` frozen in the dataset YAML, shared by
+both methods. Higher validation accuracy does not guarantee higher test accuracy.
+
 ## Automated Kaggle experiments
 
 ```bash

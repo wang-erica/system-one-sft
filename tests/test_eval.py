@@ -103,3 +103,58 @@ def test_scorer_shape_is_checked(tmp_path, config):
     with pytest.raises(ValueError, match="shape"):
         evaluation.run(config, "val", "p0", lambda images: np.zeros((len(images), 2)),
                        split_data=split_of(), results_dir=tmp_path, progress=False)
+
+
+def test_adapter_provenance_and_subset_seed(tmp_path, config):
+    adapter = tmp_path / "adapter"
+    adapter.mkdir()
+    (adapter / "adapter_config.json").write_text("{}")
+    training = {"dataset": config["dataset"], "config": {"model": config["model"]},
+                "prompt_id": "p0", "prompt": config["prompts"]["p0"], "seed": 42, "limit": 100}
+    (tmp_path / "training.json").write_text(json.dumps(training))
+    metadata = evaluation.adapter_metadata(adapter, config, "p0")
+    assert config["seed"] == 42
+    assert metadata["adapter_training_limit"] == 100
+    with pytest.raises(ValueError, match="same prompt"):
+        evaluation.adapter_metadata(adapter, config, "p1")
+    training["dataset"] = "food101"
+    (tmp_path / "training.json").write_text(json.dumps(training))
+    with pytest.raises(ValueError, match="different dataset"):
+        evaluation.adapter_metadata(adapter, config, "p0")
+
+
+def test_eval_cli_loads_adapter_and_marks_sft(tmp_path, monkeypatch, config):
+    import sys
+    import torch
+    from types import SimpleNamespace
+    from src import model
+    adapter = tmp_path / "adapter"
+    adapter.mkdir()
+    (adapter / "adapter_config.json").write_text("{}")
+    config["primary_prompt"] = "p0"
+    monkeypatch.setattr(model, "load_config", lambda _: config)
+    from src import data
+    monkeypatch.setattr(data, "load_class_names", lambda _: ["a", "b", "c"])
+    holder = torch.nn.Module()
+    holder.language_model = torch.nn.Linear(2, 2)
+    original = holder.language_model
+    monkeypatch.setattr(model, "load_model", lambda *a, **kw: SimpleNamespace(model=holder))
+    calls = []
+    def load(base, path, is_trainable):
+        assert base is original and path == str(adapter) and not is_trainable
+        calls.append(path)
+        return torch.nn.Linear(2, 2)
+    monkeypatch.setitem(sys.modules, "peft", SimpleNamespace(
+        PeftModel=SimpleNamespace(from_pretrained=load)))
+    monkeypatch.setattr(model, "class_logits", lambda *args: torch.ones(1, 3))
+    def run(config, split, prompt_id, scorer, **kwargs):
+        assert split == "val" and prompt_id == "p0"
+        assert kwargs["method"] == "sft"
+        assert kwargs["extra"]["adapter"] == str(adapter.resolve())
+        assert not holder.training
+        assert scorer([None]).shape == (1, 3)
+        return {"run_id": "test", "metrics": {}}
+    monkeypatch.setattr(evaluation, "run", run)
+    monkeypatch.setattr(sys, "argv", ["eval", "flowers102", "--split", "val", "--adapter", str(adapter)])
+    evaluation.main()
+    assert len(calls) == 1

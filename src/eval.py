@@ -190,8 +190,29 @@ def _keep_batch(batch: list[Any]) -> list[Any]:
     return batch
 
 
+def adapter_metadata(path: Path, config: dict[str, Any], prompt_id: str) -> dict[str, Any]:
+    """Validate provenance when using an adapter produced by src.train."""
+    if not (path / "adapter_config.json").is_file():
+        raise ValueError(f"no PEFT adapter_config.json found in {path}")
+    log_path = path.parent / "training.json"
+    metadata: dict[str, Any] = {"adapter": str(path.resolve())}
+    if log_path.is_file():
+        training = json.loads(log_path.read_text())
+        if training["dataset"] != config["dataset"]:
+            raise ValueError("adapter was trained on a different dataset")
+        if training["config"]["model"] != config["model"]:
+            raise ValueError("adapter and evaluation base model revisions differ")
+        if training["prompt_id"] != prompt_id or training["prompt"] != config["prompts"][prompt_id]:
+            raise ValueError("use the same prompt as the adapter's training run")
+        # Reproduce the training run's limited validation subset when --limit matches.
+        config["seed"] = training["seed"]
+        metadata["adapter_training_log"] = str(log_path.resolve())
+        metadata["adapter_training_limit"] = training.get("limit")
+    return metadata
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Zero-shot evaluation on one split.")
+    parser = argparse.ArgumentParser(description="Evaluate base Clef or a trained LoRA adapter.")
     parser.add_argument("dataset", choices=tuple(PRIMARY_METRIC))
     parser.add_argument("--split", required=True, choices=("train", "val", "test"))
     parser.add_argument("--prompt", default=None, help="prompt id (default: the config's primary_prompt)")
@@ -199,6 +220,7 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--device", default="cuda")
+    parser.add_argument("--adapter", type=Path, help="trained PEFT adapter directory")
     args = parser.parse_args()
 
     from src.data import load_class_names
@@ -207,10 +229,18 @@ def main() -> None:
     config = load_config(args.dataset)
     prompt = get_prompt(config, args.prompt)
     check_split_allowed(config, args.split, prompt.prompt_id)
+    extra = adapter_metadata(args.adapter, config, prompt.prompt_id) if args.adapter else {}
     class_names = load_class_names(args.dataset)
 
     timer = time.perf_counter()
     clef = load_model(config, device=args.device)
+    if args.adapter:
+        from peft import PeftModel
+
+        clef.model.language_model = PeftModel.from_pretrained(
+            clef.model.language_model, str(args.adapter), is_trainable=False
+        )
+    clef.model.eval()
     load_seconds = time.perf_counter() - timer
 
     @torch.inference_mode()
@@ -225,7 +255,8 @@ def main() -> None:
         limit=args.limit,
         batch_size=args.batch_size,
         workers=args.workers,
-        extra={"model_load_seconds": round(load_seconds, 2), "batch_size": args.batch_size},
+        method="sft" if args.adapter else "zeroshot",
+        extra={"model_load_seconds": round(load_seconds, 2), "batch_size": args.batch_size, **extra},
     )
     print(json.dumps({"run_id": record["run_id"], **record["metrics"]}, indent=2))
 
